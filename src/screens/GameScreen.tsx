@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, json } from 'react-router-dom';
 import { ArrowLeft, Send, Crown } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const WORD_LENGTH = 5;
 const MAX_ATTEMPTS = 6;
@@ -13,25 +14,67 @@ interface GuessResult {
   state: LetterState;
 }
 
+interface GuessEntry {
+  word: string;
+  player_id: string;
+  attempts: number;
+}
+
 export default function GameScreen() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const [currentAttempt, setCurrentAttempt] = useState('');
+  const [playerId, setPlayerId] = useState(null);
+
   const [attempts, setAttempts] = useState<string[]>([]);
   const [guessResults, setGuessResults] = useState<GuessResult[][]>([]);
+
+  const [rivalAttempts, setRivalAttempts] = useState<string[]>([]);
+  const [rivalGuessResults, setrivalGuessResults] = useState<GuessResult[][]>([]);
+
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>(
     'playing'
   );
-  const [opponentProgress, setOpponentProgress] = useState(0);
+
+  const [channel, setChannel] = useState<any>(null);
+
 
   useEffect(() => {
-    // Simulate opponent progress updates
-    const interval = setInterval(() => {
-      setOpponentProgress((prev) => Math.min(prev + 1, MAX_ATTEMPTS));
-    }, 5000);
 
-    return () => clearInterval(interval);
-  }, []);
+    if (!gameId) return;
+
+    // Crear el canal de broadcast
+    const gameChannel = supabase.channel(`game_channel_${gameId}`);
+
+    gameChannel
+      .on('broadcast', { event: 'guess' }, (payload) => {
+        console.log(JSON.stringify(payload.payload));
+        handleBroadcastGuess(payload.payload);
+      })
+      .subscribe((status) => {
+        console.log(`El estatus es ${status}`)
+        if (status === 'SUBSCRIBED') {
+          console.log(`Seteamos el channel`)
+          setChannel(gameChannel);
+        }
+      });
+
+
+
+    // Desuscribirse cuando el componente se desmonta
+    return () => {
+      console.log("Quitamos la subscription del game")
+      supabase.removeChannel(gameChannel);
+    };
+  }, [gameId, gameStatus]);
+
+  async function handleBroadcastGuess(newGuess: GuessEntry) {
+    if (newGuess.player_id === (await supabase.auth.getUser()).data.user?.id) {
+      //setPlayerGuesses((prev) => [newGuess, ...prev]);
+    } else {
+      setOpponentGuesses(newGuess);
+    }
+  };
 
   const checkGuess = (guess: string): GuessResult[] => {
     const result: GuessResult[] = [];
@@ -80,22 +123,56 @@ export default function GameScreen() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentAttempt, gameStatus]);
 
-  const submitAttempt = () => {
+  const submitAttempt = async () => {
     const newGuessResult = checkGuess(currentAttempt);
     setGuessResults((prev) => [...prev, newGuessResult]);
     setAttempts((prev) => [...prev, currentAttempt]);
     setCurrentAttempt('');
 
+    const newGuess: GuessEntry = {
+      word: currentAttempt,
+      player_id: (await supabase.auth.getUser()).data.user?.id!,
+      attempts: attempts.length,
+    };
+
+    await channel.send({
+      type: 'broadcast',
+      event: 'guess',
+      payload: newGuess,
+    });
+
     if (currentAttempt === SECRET_WORD) {
+
+      await supabase.from('games').update({ status: 'finished', winner: (await supabase.auth.getUser()).data.user?.id }).eq('id', gameId);
+
       setGameStatus('won');
       showGameEndModal('won');
     } else if (attempts.length + 1 >= MAX_ATTEMPTS) {
+
       setGameStatus('lost');
       showGameEndModal('lost');
     }
   };
 
+  const setOpponentGuesses = async (guess: GuessEntry) => {
+    const newGuessResult = checkGuess(guess.word);
+    setrivalGuessResults((prev) => [...prev, newGuessResult]);
+    setRivalAttempts((prev) => [...prev, guess.word]);
+
+    if (guess.word === SECRET_WORD) {
+      setGameStatus('lost');
+      showGameEndModal('lost');
+    } else if (guess.attempts >= MAX_ATTEMPTS) {
+
+      await supabase.from('games').update({ status: 'finished', winner: (await supabase.auth.getUser()).data.user?.id }).eq('id', gameId);
+
+      setGameStatus('won');
+      showGameEndModal('won');
+    }
+  };
+
   const showGameEndModal = (result: 'won' | 'lost') => {
+
     setTimeout(() => {
       navigate('/menu');
     }, 3000);
@@ -133,9 +210,8 @@ export default function GameScreen() {
       {/* Game Status */}
       {gameStatus !== 'playing' && (
         <div
-          className={`p-4 text-center text-white font-bold ${
-            gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
-          }`}
+          className={`p-4 text-center text-white font-bold ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+            }`}
         >
           {gameStatus === 'won'
             ? '¡Ganaste!'
@@ -175,13 +251,23 @@ export default function GameScreen() {
         {/* Opponent's Board */}
         <div className="bg-white rounded-lg shadow-md p-4">
           <div className="flex items-center mb-4">
-            <span className="font-semibold">Opponent's Progress</span>
+            <Crown className="w-5 h-5 text-yellow-500 mr-2" />
+            <span className="font-semibold">Opponent</span>
           </div>
-          <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-500 transition-all duration-500"
-              style={{ width: `${(opponentProgress / MAX_ATTEMPTS) * 100}%` }}
-            ></div>
+          <div className="grid gap-2">
+            {[...Array(MAX_ATTEMPTS)].map((_, i) => (
+              <div key={i} className="grid grid-cols-5 gap-2">
+                {[...Array(WORD_LENGTH)].map((_, j) => {
+                  const state = rivalGuessResults[i]?.[j]?.state || 'empty';
+                  return (
+                    <div key={j} className={getLetterClassName(state)}>
+                      {/* No mostrar las letras del oponente */}
+                      {/* {letter} */}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
       </div>

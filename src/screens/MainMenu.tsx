@@ -1,27 +1,65 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Swords, Users, Trophy, LogOut } from 'lucide-react';
+import { Swords, Trophy, LogOut } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { supabase } from '../lib/supabase';
+import { Game } from '../models/Game';
+import useGameSubscription from '../hooks/useGameSubscription'; // Importar el nuevo hook
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
-  const setAuthenticated = useGameStore((state) => state.setAuthenticated);
-  const setCurrentGame = useGameStore((state) => state.setCurrentGame);
+  const { isAuthenticated, currentGame, setAuthenticated, setCurrentGame } = useGameStore();
+
+  useGameSubscription(); // Usar el nuevo hook para suscribirse
+
+  // Efecto para observar cambios en `currentGame`
+  useEffect(() => {
+    if (currentGame) {
+      console.log(`Partida actualizada: ${currentGame}`);
+      // Realiza acciones adicionales si necesitas basarte en el valor de `currentGame`
+    }
+  }, [currentGame]);
 
   const handleFindMatch = async () => {
     setIsSearching(true);
     try {
-      // Simulate finding a match (replace with actual Supabase implementation)
-      const gameId = `game_${Date.now()}`;
-      setTimeout(() => {
+      const { data: pendingGames, error: fetchError } = await supabase
+        .from('games')
+        .select('*')
+        .eq('status', 'pending')
+        //.neq('created_by', (await supabase.auth.getUser()).data.user?.id)
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+      let gameId;
+
+      if (pendingGames && pendingGames.length > 0) {
+        const existingGame = pendingGames[0] as unknown as Game;
+        gameId = existingGame.id;
+
         setCurrentGame(gameId);
-        navigate(`/game/${gameId}`);
-      }, 2000);
+        //await supabase.from('gameplayers').insert([{ game_id: gameId, user_id: (await supabase.auth.getUser()).data.user?.id }]);
+        await supabase.from('games').update({ status: 'in_progress' }).eq('id', gameId);
+
+      } else {
+        const userId = (await supabase.auth.getUser()).data.user?.id;
+        const { data: gameData, error: createError } = await supabase
+          .from('games')
+          .insert([{ status: 'pending', created_by: userId }])
+          .select();
+
+        if (createError) throw createError;
+
+        const newGame = gameData[0] as unknown as Game;
+        gameId = newGame.id;
+        setCurrentGame(gameId); // Actualizar el estado de `currentGame`
+        console.log(`Juego creado con ID: ${gameId}`);
+      }
+
+      console.log('Suscritos');
     } catch (error) {
       console.error('Error finding match:', error);
-      setIsSearching(false);
     }
   };
 
@@ -39,7 +77,7 @@ export default function MainMenu() {
           <Trophy className="w-16 h-16 text-yellow-500" />
         </div>
         <h1 className="text-3xl font-bold text-center mb-8">Wordle Battle</h1>
-        
+
         <div className="space-y-4">
           <button
             onClick={handleFindMatch}
@@ -69,25 +107,12 @@ export default function MainMenu() {
           </div>
 
           <button
-            onClick={() => navigate('/leaderboard')}
-            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center space-x-2"
-          >
-            <Trophy className="w-5 h-5" />
-            <span>Leaderboard</span>
-          </button>
-
-          <button
             onClick={handleLogout}
             className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
           >
             <LogOut className="w-5 h-5" />
             <span>Logout</span>
           </button>
-        </div>
-
-        <div className="mt-8 flex items-center justify-center text-sm text-gray-500">
-          <Users className="w-4 h-4 mr-2" />
-          <span>Players Online: 42</span>
         </div>
       </div>
     </div>

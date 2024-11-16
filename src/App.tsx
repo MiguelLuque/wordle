@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import SplashScreen from './screens/SplashScreen';
 import AuthScreen from './screens/AuthScreen';

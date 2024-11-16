@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,19 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setAuthenticated(true);
+        navigate('/menu');
+      }
+    };
+
+    checkSession();
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

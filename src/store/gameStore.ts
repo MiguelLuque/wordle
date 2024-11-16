@@ -2,9 +2,9 @@ import { create } from 'zustand';
 
 interface GameState {
   isAuthenticated: boolean;
-  currentGame: string | null;
+  currentGame: number | null;
   setAuthenticated: (value: boolean) => void;
-  setCurrentGame: (gameId: string | null) => void;
+  setCurrentGame: (gameId: number | null) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
