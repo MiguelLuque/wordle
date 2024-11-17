@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, json } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const WORD_LENGTH = 5;
 const MAX_ATTEMPTS = 6;
-const SECRET_WORD = 'GATOS';
 
 type LetterState = 'correct' | 'present' | 'absent' | 'empty';
 
@@ -24,61 +23,82 @@ export default function GameScreen() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const [currentAttempt, setCurrentAttempt] = useState('');
-  const [playerId, setPlayerId] = useState(null);
-
+  const [secretWord, setSecretWord] = useState('');
   const [attempts, setAttempts] = useState<string[]>([]);
   const [guessResults, setGuessResults] = useState<GuessResult[][]>([]);
-
   const [rivalAttempts, setRivalAttempts] = useState<string[]>([]);
   const [rivalGuessResults, setrivalGuessResults] = useState<GuessResult[][]>([]);
-
-  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>(
-    'playing'
-  );
-
+  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [channel, setChannel] = useState<any>(null);
 
+  useEffect(() => {
+    const fetchSecretWord = async () => {
+      if (!gameId) return;
+
+      const { data: game, error } = await supabase
+        .from('games')
+        .select('secret_word')
+        .eq('id', gameId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching secret word:', error);
+        return;
+      }
+
+      if (game?.secret_word) {
+        setSecretWord(game.secret_word.toUpperCase());
+      }
+    };
+
+    fetchSecretWord();
+  }, [gameId]);
 
   useEffect(() => {
+    if (!gameId || !secretWord) return;
 
-    if (!gameId) return;
-
-    // Crear el canal de broadcast
     const gameChannel = supabase.channel(`game_channel_${gameId}`);
+
+    const handleBroadcastGuess = async (newGuess: GuessEntry) => {
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (newGuess.player_id === userId) {
+        // Manejar el intento del propio jugador si es necesario
+      } else {
+        setOpponentGuesses(newGuess);
+      }
+    };
 
     gameChannel
       .on('broadcast', { event: 'guess' }, (payload) => {
-        console.log(JSON.stringify(payload.payload));
         handleBroadcastGuess(payload.payload);
       })
       .subscribe((status) => {
-        console.log(`El estatus es ${status}`)
         if (status === 'SUBSCRIBED') {
-          console.log(`Seteamos el channel`)
           setChannel(gameChannel);
         }
       });
 
-
-
-    // Desuscribirse cuando el componente se desmonta
     return () => {
-      console.log("Quitamos la subscription del game")
       supabase.removeChannel(gameChannel);
     };
-  }, [gameId, gameStatus]);
+  }, [gameId, secretWord]);
+
 
   async function handleBroadcastGuess(newGuess: GuessEntry) {
     if (newGuess.player_id === (await supabase.auth.getUser()).data.user?.id) {
+      // Handle player's own guess
       //setPlayerGuesses((prev) => [newGuess, ...prev]);
+
     } else {
       setOpponentGuesses(newGuess);
     }
-  };
+  }
 
   const checkGuess = (guess: string): GuessResult[] => {
+    if (!secretWord) return [];
+
     const result: GuessResult[] = [];
-    const secretLetters = SECRET_WORD.split('');
+    const secretLetters = secretWord.split('');
     const remainingLetters = [...secretLetters];
 
     // First pass: mark correct letters
@@ -124,6 +144,8 @@ export default function GameScreen() {
   }, [currentAttempt, gameStatus]);
 
   const submitAttempt = async () => {
+    if (!secretWord) return;
+
     const newGuessResult = checkGuess(currentAttempt);
     setGuessResults((prev) => [...prev, newGuessResult]);
     setAttempts((prev) => [...prev, currentAttempt]);
@@ -141,30 +163,41 @@ export default function GameScreen() {
       payload: newGuess,
     });
 
-    if (currentAttempt === SECRET_WORD) {
-
-      await supabase.from('games').update({ status: 'finished', winner: (await supabase.auth.getUser()).data.user?.id }).eq('id', gameId);
+    if (currentAttempt === secretWord) {
+      await supabase
+        .from('games')
+        .update({
+          status: 'finished',
+          winner: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', gameId);
 
       setGameStatus('won');
       showGameEndModal('won');
     } else if (attempts.length + 1 >= MAX_ATTEMPTS) {
-
       setGameStatus('lost');
       showGameEndModal('lost');
     }
   };
 
   const setOpponentGuesses = async (guess: GuessEntry) => {
+    if (!secretWord) return;
+
     const newGuessResult = checkGuess(guess.word);
     setrivalGuessResults((prev) => [...prev, newGuessResult]);
     setRivalAttempts((prev) => [...prev, guess.word]);
 
-    if (guess.word === SECRET_WORD) {
+    if (guess.word === secretWord) {
       setGameStatus('lost');
       showGameEndModal('lost');
     } else if (guess.attempts >= MAX_ATTEMPTS) {
-
-      await supabase.from('games').update({ status: 'finished', winner: (await supabase.auth.getUser()).data.user?.id }).eq('id', gameId);
+      await supabase
+        .from('games')
+        .update({
+          status: 'finished',
+          winner: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', gameId);
 
       setGameStatus('won');
       showGameEndModal('won');
@@ -172,7 +205,6 @@ export default function GameScreen() {
   };
 
   const showGameEndModal = (result: 'won' | 'lost') => {
-
     setTimeout(() => {
       navigate('/menu');
     }, 3000);
@@ -180,7 +212,7 @@ export default function GameScreen() {
 
   const getLetterClassName = (state: LetterState) => {
     const baseClass =
-      'w-full aspect-square border-2 rounded flex items-center justify-center text-xl font-bold uppercase transition-colors';
+      'w-full aspect-square border-2 rounded flex items-center justify-center font-bold uppercase transition-colors text-sm sm:text-base';
     switch (state) {
       case 'correct':
         return `${baseClass} bg-green-500 text-white border-green-600`;
@@ -193,43 +225,47 @@ export default function GameScreen() {
     }
   };
 
+  if (!secretWord) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
-      <div className="bg-white shadow-sm p-4 flex items-center justify-between">
+      <div className="bg-white shadow-sm p-2 sm:p-4 flex items-center justify-between">
         <button
           onClick={() => navigate('/menu')}
           className="text-gray-600 hover:text-gray-800 transition-colors"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
-        <h1 className="text-xl font-bold">Wordle Battle</h1>
-        <div className="w-6"></div>
+        <h1 className="text-lg sm:text-xl font-bold">Wordle Battle</h1>
+        <div className="w-5 sm:w-6"></div>
       </div>
 
-      {/* Game Status */}
       {gameStatus !== 'playing' && (
         <div
-          className={`p-4 text-center text-white font-bold ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+          className={`p-2 sm:p-4 text-center text-white font-bold ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
             }`}
         >
           {gameStatus === 'won'
             ? '¡Ganaste!'
-            : `¡Perdiste! La palabra era ${SECRET_WORD}`}
+            : `¡Perdiste! La palabra era ${secretWord}`}
         </div>
       )}
 
-      {/* Game Area */}
-      <div className="flex-1 p-4 grid grid-cols-2 gap-4">
-        {/* Player's Board */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center mb-4">
-            <Crown className="w-5 h-5 text-yellow-500 mr-2" />
-            <span className="font-semibold">Your Board</span>
+      <div className="flex-1 p-2 sm:p-4 flex flex-col gap-4 max-w-4xl mx-auto w-full">
+        <div className="flex-1 bg-white rounded-lg shadow-md p-3 sm:p-4">
+          <div className="flex items-center mb-3 sm:mb-4">
+            <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 mr-2" />
+            <span className="font-semibold text-sm sm:text-base">Your Board</span>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-1 sm:gap-2 max-w-md mx-auto">
             {[...Array(MAX_ATTEMPTS)].map((_, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2">
+              <div key={i} className="grid grid-cols-5 gap-1 sm:gap-2">
                 {[...Array(WORD_LENGTH)].map((_, j) => {
                   const letter =
                     i === attempts.length
@@ -238,7 +274,10 @@ export default function GameScreen() {
                   const state = guessResults[i]?.[j]?.state || 'empty';
 
                   return (
-                    <div key={j} className={getLetterClassName(state)}>
+                    <div
+                      key={j}
+                      className={`${getLetterClassName(state)} text-base sm:text-xl`}
+                    >
                       {letter}
                     </div>
                   );
@@ -248,60 +287,68 @@ export default function GameScreen() {
           </div>
         </div>
 
-        {/* Opponent's Board */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center mb-4">
-            <Crown className="w-5 h-5 text-yellow-500 mr-2" />
-            <span className="font-semibold">Opponent</span>
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center">
+              <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2" />
+              <span className="font-semibold text-sm sm:text-base text-gray-600">Opponent's Progress</span>
+            </div>
+            <span className="text-sm text-gray-500">
+              {rivalAttempts.length}/{MAX_ATTEMPTS} attempts
+            </span>
           </div>
-          <div className="grid gap-2">
-            {[...Array(MAX_ATTEMPTS)].map((_, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2">
-                {[...Array(WORD_LENGTH)].map((_, j) => {
-                  const state = rivalGuessResults[i]?.[j]?.state || 'empty';
-                  return (
-                    <div key={j} className={getLetterClassName(state)}>
-                      {/* No mostrar las letras del oponente */}
-                      {/* {letter} */}
-                    </div>
-                  );
-                })}
+
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2">
+            {rivalGuessResults.map((result, attemptIndex) => (
+              <div key={attemptIndex} className="flex flex-col items-center gap-1">
+                <div className="flex gap-0.5">
+                  {result.map((guess, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full ${guess.state === 'correct'
+                        ? 'bg-green-500'
+                        : guess.state === 'present'
+                          ? 'bg-yellow-500'
+                          : 'bg-gray-300'
+                        }`}
+                    />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Virtual Keyboard */}
-      <div className="bg-white shadow-lg p-4">
-        <div className="flex justify-center mb-2">
-          <input
-            type="text"
-            value={currentAttempt}
-            onChange={(e) => {
-              const value = e.target.value.toUpperCase();
-              if (value.length <= WORD_LENGTH && /^[A-Z]*$/.test(value)) {
-                setCurrentAttempt(value);
+        <div className="bg-white shadow-lg p-2 sm:p-4 rounded-lg">
+          <div className="flex justify-center mb-2 max-w-md mx-auto">
+            <input
+              type="text"
+              value={currentAttempt}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase();
+                if (value.length <= WORD_LENGTH && /^[A-Z]*$/.test(value)) {
+                  setCurrentAttempt(value);
+                }
+              }}
+              maxLength={WORD_LENGTH}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
+              placeholder="Type your guess..."
+              disabled={gameStatus !== 'playing'}
+            />
+            <button
+              onClick={() =>
+                currentAttempt.length === WORD_LENGTH && submitAttempt()
               }
-            }}
-            maxLength={WORD_LENGTH}
-            className="w-full max-w-xs px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            placeholder="Type your guess..."
-            disabled={gameStatus !== 'playing'}
-          />
-          <button
-            onClick={() =>
-              currentAttempt.length === WORD_LENGTH && submitAttempt()
-            }
-            className="ml-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-            disabled={
-              currentAttempt.length !== WORD_LENGTH || gameStatus !== 'playing'
-            }
-          >
-            <Send className="w-5 h-5" />
-          </button>
+              className="ml-2 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              disabled={
+                currentAttempt.length !== WORD_LENGTH || gameStatus !== 'playing'
+              }
+            >
+              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
-}
+} 

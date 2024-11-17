@@ -1,65 +1,65 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Swords, Trophy, LogOut } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { supabase } from '../lib/supabase';
-import { Game } from '../models/Game';
-import useGameSubscription from '../hooks/useGameSubscription'; // Importar el nuevo hook
+import useGameSubscription from '../hooks/useGameSubscription';
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
-  const { isAuthenticated, currentGame, setAuthenticated, setCurrentGame } = useGameStore();
+  const { setAuthenticated, setCurrentGame } = useGameStore();
 
-  useGameSubscription(); // Usar el nuevo hook para suscribirse
-
-  // Efecto para observar cambios en `currentGame`
-  useEffect(() => {
-    if (currentGame) {
-      console.log(`Partida actualizada: ${currentGame}`);
-      // Realiza acciones adicionales si necesitas basarte en el valor de `currentGame`
-    }
-  }, [currentGame]);
+  useGameSubscription();
 
   const handleFindMatch = async () => {
     setIsSearching(true);
     try {
+      // First check for pending games
       const { data: pendingGames, error: fetchError } = await supabase
         .from('games')
         .select('*')
         .eq('status', 'pending')
-        //.neq('created_by', (await supabase.auth.getUser()).data.user?.id)
         .limit(1);
 
       if (fetchError) throw fetchError;
       let gameId;
 
       if (pendingGames && pendingGames.length > 0) {
-        const existingGame = pendingGames[0] as unknown as Game;
-        gameId = existingGame.id;
-
+        // Join existing game
+        gameId = pendingGames[0].id;
         setCurrentGame(gameId);
-        //await supabase.from('gameplayers').insert([{ game_id: gameId, user_id: (await supabase.auth.getUser()).data.user?.id }]);
-        await supabase.from('games').update({ status: 'in_progress' }).eq('id', gameId);
-
+        await supabase
+          .from('games')
+          .update({ status: 'in_progress' })
+          .eq('id', gameId);
       } else {
-        const userId = (await supabase.auth.getUser()).data.user?.id;
+        // Get random word using efficient random selection
+        const { data: randomWord, error: wordError } = await supabase.rpc('get_random_word');
+        if (wordError) throw wordError;
+
+        if (!randomWord[0]?.word) {
+          throw new Error('No words available in the database');
+        }
+
+        // Create new game with random word
         const { data: gameData, error: createError } = await supabase
           .from('games')
-          .insert([{ status: 'pending', created_by: userId }])
+          .insert([{
+            status: 'pending',
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+            secret_word: randomWord[0].word.toUpperCase()
+          }])
           .select();
 
         if (createError) throw createError;
 
-        const newGame = gameData[0] as unknown as Game;
-        gameId = newGame.id;
-        setCurrentGame(gameId); // Actualizar el estado de `currentGame`
-        console.log(`Juego creado con ID: ${gameId}`);
+        gameId = gameData[0].id;
+        setCurrentGame(gameId);
       }
-
-      console.log('Suscritos');
     } catch (error) {
       console.error('Error finding match:', error);
+      setIsSearching(false);
     }
   };
 
