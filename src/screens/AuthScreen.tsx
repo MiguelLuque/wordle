@@ -100,14 +100,14 @@ export default function AuthScreen() {
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>
-        <div className="mt-6">
+        {/* <div className="mt-6">
           <button
             onClick={handleGuestLogin}
             className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
           >
             Continue as Guest
           </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );
