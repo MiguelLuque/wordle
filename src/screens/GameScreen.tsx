@@ -19,6 +19,14 @@ interface GuessEntry {
   attempts: number;
 }
 
+const KEYBOARD_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'],
+  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL']
+];
+
+type KeyState = 'correct' | 'present' | 'absent' | 'unused';
+
 export default function GameScreen() {
   const { gameId } = useParams();
   const navigate = useNavigate();
@@ -30,6 +38,7 @@ export default function GameScreen() {
   const [rivalGuessResults, setrivalGuessResults] = useState<GuessResult[][]>([]);
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [channel, setChannel] = useState<any>(null);
+  const [keyboardState, setKeyboardState] = useState<Record<string, KeyState>>({});
 
   useEffect(() => {
     const fetchSecretWord = async () => {
@@ -128,25 +137,55 @@ export default function GameScreen() {
   const handleKeyPress = (key: string) => {
     if (gameStatus !== 'playing') return;
 
-    if (key === 'Backspace') {
+    // Normalizar la tecla a mayúsculas para el teclado físico
+    const normalizedKey = key.toUpperCase();
+
+    if (key === 'DEL' || key === 'Backspace' || key === 'Delete') {
       setCurrentAttempt((prev) => prev.slice(0, -1));
-    } else if (key === 'Enter' && currentAttempt.length === WORD_LENGTH) {
+    } else if ((key === 'ENTER' || key === 'Enter') && currentAttempt.length === WORD_LENGTH) {
       submitAttempt();
-    } else if (currentAttempt.length < WORD_LENGTH && /^[A-Za-z]$/.test(key)) {
-      setCurrentAttempt((prev) => prev + key.toUpperCase());
+    } else if (currentAttempt.length < WORD_LENGTH) {
+      // Verificar si es una letra válida (incluyendo Ñ)
+      if (/^[A-ZÑ]$/.test(normalizedKey)) {
+        setCurrentAttempt((prev) => prev + normalizedKey);
+      }
     }
   };
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => handleKeyPress(e.key);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevenir el comportamiento por defecto para evitar doble entrada
+      if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+      }
+      handleKeyPress(e.key);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentAttempt, gameStatus]);
+
+  const updateKeyboardState = (guessResult: GuessResult[]) => {
+    setKeyboardState(prevState => {
+      const newState = { ...prevState };
+      guessResult.forEach(({ letter, state }) => {
+        if (state === 'correct') {
+          newState[letter] = 'correct';
+        } else if (state === 'present' && newState[letter] !== 'correct') {
+          newState[letter] = 'present';
+        } else if (state === 'absent' && !newState[letter]) {
+          newState[letter] = 'absent';
+        }
+      });
+      return newState;
+    });
+  };
 
   const submitAttempt = async () => {
     if (!secretWord) return;
 
     const newGuessResult = checkGuess(currentAttempt);
+    updateKeyboardState(newGuessResult);
     setGuessResults((prev) => [...prev, newGuessResult]);
     setAttempts((prev) => [...prev, currentAttempt]);
     setCurrentAttempt('');
@@ -212,7 +251,7 @@ export default function GameScreen() {
 
   const getLetterClassName = (state: LetterState) => {
     const baseClass =
-      'w-full aspect-square border-2 rounded flex items-center justify-center font-bold uppercase transition-colors text-sm sm:text-base';
+      'w-12 h-12 sm:w-14 sm:h-14 border-2 rounded flex items-center justify-center font-bold uppercase transition-colors text-base sm:text-lg';
     switch (state) {
       case 'correct':
         return `${baseClass} bg-green-500 text-white border-green-600`;
@@ -225,6 +264,42 @@ export default function GameScreen() {
     }
   };
 
+  const renderKeyboard = () => (
+    <div className="grid gap-1.5">
+      {KEYBOARD_ROWS.map((row, i) => (
+        <div key={i} className="flex justify-center gap-1">
+          {row.map((key) => {
+            const keyState = keyboardState[key] || 'unused';
+            const isSpecialKey = key === 'ENTER' || key === 'DEL';
+
+            return (
+              <button
+                key={key}
+                onClick={() => handleKeyPress(key)}
+                disabled={gameStatus !== 'playing'}
+                className={`
+                  ${isSpecialKey ? 'px-3 sm:px-4' : 'px-2.5 sm:px-3.5'} 
+                  py-3 sm:py-4 
+                  rounded 
+                  font-semibold 
+                  text-sm sm:text-base 
+                  transition-colors
+                  ${keyState === 'correct' ? 'bg-green-500 text-white' :
+                    keyState === 'present' ? 'bg-yellow-500 text-white' :
+                      keyState === 'absent' ? 'bg-gray-500 text-white' :
+                        'bg-gray-200 hover:bg-gray-300'
+                  }
+                `}
+              >
+                {key}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+
   if (!secretWord) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -235,7 +310,7 @@ export default function GameScreen() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="bg-white shadow-sm p-2 sm:p-4 flex items-center justify-between">
+      <div className="bg-white shadow-sm p-2 flex items-center justify-between">
         <button
           onClick={() => navigate('/menu')}
           className="text-gray-600 hover:text-gray-800 transition-colors"
@@ -247,47 +322,17 @@ export default function GameScreen() {
       </div>
 
       {gameStatus !== 'playing' && (
-        <div
-          className={`p-2 sm:p-4 text-center text-white font-bold ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
-            }`}
-        >
+        <div className={`p-2 text-center text-white font-bold text-sm ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+          }`}>
           {gameStatus === 'won'
             ? '¡Ganaste!'
             : `¡Perdiste! La palabra era ${secretWord}`}
         </div>
       )}
 
-      <div className="flex-1 p-2 sm:p-4 flex flex-col gap-4 max-w-4xl mx-auto w-full">
-        <div className="flex-1 bg-white rounded-lg shadow-md p-3 sm:p-4">
-          <div className="flex items-center mb-3 sm:mb-4">
-            <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 mr-2" />
-            <span className="font-semibold text-sm sm:text-base">Your Board</span>
-          </div>
-          <div className="grid gap-1 sm:gap-2 max-w-md mx-auto">
-            {[...Array(MAX_ATTEMPTS)].map((_, i) => (
-              <div key={i} className="grid grid-cols-5 gap-1 sm:gap-2">
-                {[...Array(WORD_LENGTH)].map((_, j) => {
-                  const letter =
-                    i === attempts.length
-                      ? currentAttempt[j] || ''
-                      : attempts[i]?.[j] || '';
-                  const state = guessResults[i]?.[j]?.state || 'empty';
-
-                  return (
-                    <div
-                      key={j}
-                      className={`${getLetterClassName(state)} text-base sm:text-xl`}
-                    >
-                      {letter}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
+      <div className="flex-1 p-3 flex flex-col gap-3 max-w-lg mx-auto w-full">
+        {/* Opponent's Progress Card */}
+        <div className="bg-white rounded-lg shadow-md p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
               <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2" />
@@ -319,33 +364,39 @@ export default function GameScreen() {
           </div>
         </div>
 
-        <div className="bg-white shadow-lg p-2 sm:p-4 rounded-lg">
-          <div className="flex justify-center mb-2 max-w-md mx-auto">
-            <input
-              type="text"
-              value={currentAttempt}
-              onChange={(e) => {
-                const value = e.target.value.toUpperCase();
-                if (value.length <= WORD_LENGTH && /^[A-Z]*$/.test(value)) {
-                  setCurrentAttempt(value);
-                }
-              }}
-              maxLength={WORD_LENGTH}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
-              placeholder="Type your guess..."
-              disabled={gameStatus !== 'playing'}
-            />
-            <button
-              onClick={() =>
-                currentAttempt.length === WORD_LENGTH && submitAttempt()
-              }
-              className="ml-2 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-              disabled={
-                currentAttempt.length !== WORD_LENGTH || gameStatus !== 'playing'
-              }
-            >
-              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+        {/* Main Game Card - Board and Keyboard Combined */}
+        <div className="flex-1 bg-white rounded-lg shadow-md p-3 flex flex-col gap-4">
+          <div>
+            <div className="flex items-center mb-3">
+              <Crown className="w-5 h-5 text-yellow-500 mr-2" />
+              <span className="font-semibold text-sm sm:text-base">Your Board</span>
+            </div>
+            <div className="grid gap-2 mx-auto" style={{ maxWidth: "fit-content" }}>
+              {[...Array(MAX_ATTEMPTS)].map((_, i) => (
+                <div key={i} className="grid grid-cols-5 gap-1">
+                  {[...Array(WORD_LENGTH)].map((_, j) => {
+                    const letter =
+                      i === attempts.length
+                        ? currentAttempt[j] || ''
+                        : attempts[i]?.[j] || '';
+                    const state = guessResults[i]?.[j]?.state || 'empty';
+
+                    return (
+                      <div
+                        key={j}
+                        className={`${getLetterClassName(state)} text-base sm:text-xl`}
+                      >
+                        {letter}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto"> {/* Esto empujará el teclado hacia abajo */}
+            {renderKeyboard()}
           </div>
         </div>
       </div>
