@@ -11,7 +11,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     const checkSession = async () => {
@@ -28,6 +28,13 @@ export default function AuthScreen() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setPasswordError('');
+
+    if (!isLogin && password.length < 6) {
+      setPasswordError('La contraseña debe tener al menos 6 caracteres');
+      setLoading(false);
+      return;
+    }
 
     try {
       const { error } = isLogin
@@ -79,10 +86,24 @@ export default function AuthScreen() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (!isLogin && passwordError) {
+                  setPasswordError('');
+                }
+              }}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${passwordError ? 'border-red-500' : ''
+                }`}
               required
             />
+            {passwordError && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {passwordError}
+              </p>
+            )}
           </div>
           <button
             type="submit"
