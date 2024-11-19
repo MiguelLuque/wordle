@@ -251,7 +251,7 @@ export default function GameScreen() {
 
   const getLetterClassName = (state: LetterState) => {
     const baseClass =
-      'w-12 h-12 sm:w-14 sm:h-14 border-2 rounded flex items-center justify-center font-bold uppercase transition-colors text-base sm:text-lg';
+      'w-11 h-11 md:w-14 md:h-14 border-2 rounded flex items-center justify-center font-bold uppercase transition-colors text-xl md:text-2xl';
     switch (state) {
       case 'correct':
         return `${baseClass} bg-green-500 text-white border-green-600`;
@@ -265,7 +265,7 @@ export default function GameScreen() {
   };
 
   const renderKeyboard = () => (
-    <div className="grid gap-1.5">
+    <div className="grid gap-1 w-full max-w-[500px] mx-auto">
       {KEYBOARD_ROWS.map((row, i) => (
         <div key={i} className="flex justify-center gap-1">
           {row.map((key) => {
@@ -278,12 +278,16 @@ export default function GameScreen() {
                 onClick={() => handleKeyPress(key)}
                 disabled={gameStatus !== 'playing'}
                 className={`
-                  ${isSpecialKey ? 'px-3 sm:px-4' : 'px-2.5 sm:px-3.5'} 
-                  py-3 sm:py-4 
+                  ${isSpecialKey ? 'flex-[1.5]' : 'flex-1'} 
+                  h-[3.25rem] md:h-14
                   rounded 
                   font-semibold 
-                  text-sm sm:text-base 
+                  text-xs md:text-base 
                   transition-colors
+                  flex
+                  items-center
+                  justify-center
+                  min-w-[2rem]
                   ${keyState === 'correct' ? 'bg-green-500 text-white' :
                     keyState === 'present' ? 'bg-yellow-500 text-white' :
                       keyState === 'absent' ? 'bg-gray-500 text-white' :
@@ -309,20 +313,20 @@ export default function GameScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="bg-white shadow-sm p-2 flex items-center justify-between">
+    <div className="h-[100dvh] bg-gray-100 flex flex-col">
+      <div className="bg-white shadow-sm p-3 flex items-center justify-between">
         <button
           onClick={() => navigate('/menu')}
           className="text-gray-600 hover:text-gray-800 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-lg sm:text-xl font-bold">Wordle Battle</h1>
-        <div className="w-5 sm:w-6"></div>
+        <h1 className="text-xl font-bold">Wordle Battle</h1>
+        <div className="w-6"></div>
       </div>
 
       {gameStatus !== 'playing' && (
-        <div className={`p-2 text-center text-white font-bold text-sm ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+        <div className={`p-2 text-center text-white font-bold ${gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
           }`}>
           {gameStatus === 'won'
             ? '¡Ganaste!'
@@ -330,48 +334,47 @@ export default function GameScreen() {
         </div>
       )}
 
-      <div className="flex-1 p-3 flex flex-col gap-3 max-w-lg mx-auto w-full">
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
         {/* Opponent's Progress Card */}
         <div className="bg-white rounded-lg shadow-md p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
-              <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mr-2" />
-              <span className="font-semibold text-sm sm:text-base text-gray-600">Opponent's Progress</span>
+              <Crown className="w-5 h-5 text-gray-400 mr-2" />
+              <span className="font-semibold text-gray-600">Opponent's Progress</span>
             </div>
             <span className="text-sm text-gray-500">
-              {rivalAttempts.length}/{MAX_ATTEMPTS} attempts
+              {rivalAttempts.length}/{MAX_ATTEMPTS}
             </span>
           </div>
 
-          <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2">
             {rivalGuessResults.map((result, attemptIndex) => (
-              <div key={attemptIndex} className="flex flex-col items-center gap-1">
-                <div className="flex gap-0.5">
-                  {result.map((guess, i) => (
-                    <div
-                      key={i}
-                      className={`w-2 h-2 rounded-full ${guess.state === 'correct'
-                        ? 'bg-green-500'
-                        : guess.state === 'present'
-                          ? 'bg-yellow-500'
-                          : 'bg-gray-300'
-                        }`}
-                    />
-                  ))}
-                </div>
+              <div key={attemptIndex} className="flex gap-0.5">
+                {result.map((guess, i) => (
+                  <div
+                    key={i}
+                    className={`w-2 h-2 rounded-full ${guess.state === 'correct'
+                      ? 'bg-green-500'
+                      : guess.state === 'present'
+                        ? 'bg-yellow-500'
+                        : 'bg-gray-300'
+                      }`}
+                  />
+                ))}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Main Game Card - Board and Keyboard Combined */}
-        <div className="flex-1 bg-white rounded-lg shadow-md p-3 flex flex-col gap-4">
-          <div>
-            <div className="flex items-center mb-3">
+        {/* Game Board */}
+        <div className="flex-1 bg-white rounded-lg shadow-md p-4 flex flex-col">
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center mb-4">
               <Crown className="w-5 h-5 text-yellow-500 mr-2" />
-              <span className="font-semibold text-sm sm:text-base">Your Board</span>
+              <span className="font-semibold">Your Board</span>
             </div>
-            <div className="grid gap-2 mx-auto" style={{ maxWidth: "fit-content" }}>
+
+            <div className="grid gap-2 mx-auto mb-4" style={{ maxWidth: "fit-content" }}>
               {[...Array(MAX_ATTEMPTS)].map((_, i) => (
                 <div key={i} className="grid grid-cols-5 gap-1">
                   {[...Array(WORD_LENGTH)].map((_, j) => {
@@ -382,10 +385,7 @@ export default function GameScreen() {
                     const state = guessResults[i]?.[j]?.state || 'empty';
 
                     return (
-                      <div
-                        key={j}
-                        className={`${getLetterClassName(state)} text-base sm:text-xl`}
-                      >
+                      <div key={j} className={getLetterClassName(state)}>
                         {letter}
                       </div>
                     );
@@ -393,10 +393,10 @@ export default function GameScreen() {
                 </div>
               ))}
             </div>
-          </div>
 
-          <div className="mt-auto"> {/* Esto empujará el teclado hacia abajo */}
-            {renderKeyboard()}
+            <div className="mt-auto">
+              {renderKeyboard()}
+            </div>
           </div>
         </div>
       </div>
