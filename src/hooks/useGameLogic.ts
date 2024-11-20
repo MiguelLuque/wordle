@@ -3,6 +3,11 @@ import { supabase } from '../lib/supabase';
 import { GuessResult, GuessEntry, GameStatus, KeyState } from '../types/game.types';
 import { GAME_CONSTANTS } from '../types/game.types';
 
+interface GameMessage {
+  type: 'game_over' | 'guess';
+  payload: GuessEntry | { reason: 'out_of_attempts' | 'word_guessed' };
+}
+
 export function useGameLogic(gameId: string | undefined) {
   const [currentAttempt, setCurrentAttempt] = useState('');
   const [secretWord, setSecretWord] = useState('');
@@ -95,10 +100,18 @@ export function useGameLogic(gameId: string | undefined) {
     await channel?.send({
       type: 'broadcast',
       event: 'guess',
-      payload: newGuess,
+      payload: newGuess
     });
 
     if (currentAttempt === secretWord) {
+      await channel?.send({
+        type: 'broadcast',
+        event: 'game_over',
+        payload: {
+          reason: 'word_guessed'
+        }
+      });
+
       await supabase
         .from('games')
         .update({
@@ -109,6 +122,14 @@ export function useGameLogic(gameId: string | undefined) {
 
       setGameStatus('won');
     } else if (attempts.length + 1 >= GAME_CONSTANTS.MAX_ATTEMPTS) {
+      await channel?.send({
+        type: 'broadcast',
+        event: 'game_over',
+        payload: {
+          reason: 'out_of_attempts'
+        }
+      });
+
       setGameStatus('lost');
     }
   };
@@ -141,23 +162,28 @@ export function useGameLogic(gameId: string | undefined) {
 
     const gameChannel = supabase.channel(`game_channel_${gameId}`);
 
-    const handleBroadcastGuess = async (newGuess: GuessEntry) => {
+    const handleGuess = async (payload: { payload: GuessEntry }) => {
       const userId = (await supabase.auth.getUser()).data.user?.id;
+      const newGuess = payload.payload;
+      
       if (newGuess.player_id !== userId) {
         const newGuessResult = checkGuess(newGuess.word);
         setRivalGuessResults((prev) => [...prev, newGuessResult]);
         setRivalAttempts((prev) => [...prev, newGuess.word]);
+      }
+    };
 
-        if (newGuess.word === secretWord) {
-          setGameStatus('lost');
-        }
+    const handleGameOver = async (payload: { payload: { reason: 'out_of_attempts' | 'word_guessed' } }) => {
+      if (payload.payload.reason === 'word_guessed') {
+        setGameStatus('lost');
+      } else if (payload.payload.reason === 'out_of_attempts' && gameStatus === 'playing') {
+        setGameStatus('won');
       }
     };
 
     gameChannel
-      .on('broadcast', { event: 'guess' }, (payload) => {
-        handleBroadcastGuess(payload.payload);
-      })
+      .on('broadcast', { event: 'guess' }, handleGuess)
+      .on('broadcast', { event: 'game_over' }, handleGameOver)
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setChannel(gameChannel);
@@ -167,7 +193,7 @@ export function useGameLogic(gameId: string | undefined) {
     return () => {
       supabase.removeChannel(gameChannel);
     };
-  }, [gameId, secretWord]);
+  }, [gameId, secretWord, gameStatus]);
 
   return {
     currentAttempt,
@@ -179,6 +205,5 @@ export function useGameLogic(gameId: string | undefined) {
     gameStatus,
     keyboardState,
     handleKeyPress,
-    submitAttempt
   };
 } 

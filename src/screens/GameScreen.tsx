@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { useSinglePlayerLogic } from '../hooks/useSinglePlayerLogic';
+import { useAutoRedirect } from '../hooks/useAutoRedirect';
 import { useGameStore } from '../store/gameStore';
 import { OpponentProgress } from '../components/game/OpponentProgress';
 import { GameBoard } from '../components/game/GameBoard';
@@ -11,7 +12,7 @@ import { VirtualKeyboard } from '../components/game/VirtualKeyboard';
 export default function GameScreen() {
   const { gameId } = useParams();
   const navigate = useNavigate();
-  const { gameMode, currentGame } = useGameStore();
+  const { gameMode, currentGame, setCurrentGame, setGameMode } = useGameStore();
 
   const multiplayerGame = useGameLogic(gameId);
   const singlePlayerGame = useSinglePlayerLogic(
@@ -19,6 +20,18 @@ export default function GameScreen() {
   );
 
   const game = gameMode === 'single' ? singlePlayerGame : multiplayerGame;
+
+  // Configurar redirección automática cuando el juego termina
+  useAutoRedirect({
+    condition: game.gameStatus !== 'playing',
+    delay: 3000,
+    path: '/menu',
+    onRedirect: () => {
+      // Limpiar el estado del juego al redirigir
+      setCurrentGame(null);
+      setGameMode(null);
+    }
+  });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,9 +73,16 @@ export default function GameScreen() {
           className={`p-2 text-center text-white font-bold ${game.gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
             }`}
         >
-          {game.gameStatus === 'won'
-            ? '¡Ganaste!'
-            : `¡Perdiste! La palabra era ${game.secretWord}`}
+          <div className="flex flex-col items-center">
+            <div>
+              {game.gameStatus === 'won'
+                ? '¡Ganaste!'
+                : `¡Perdiste! La palabra era ${game.secretWord}`}
+            </div>
+            <div className="text-sm mt-1 opacity-75">
+              Volviendo al menú en 3 segundos...
+            </div>
+          </div>
         </div>
       )}
 
