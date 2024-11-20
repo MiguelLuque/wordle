@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useGameLogic } from '../hooks/useGameLogic';
+import { useSinglePlayerLogic } from '../hooks/useSinglePlayerLogic';
+import { useGameStore } from '../store/gameStore';
 import { OpponentProgress } from '../components/game/OpponentProgress';
 import { GameBoard } from '../components/game/GameBoard';
 import { VirtualKeyboard } from '../components/game/VirtualKeyboard';
@@ -9,7 +11,14 @@ import { VirtualKeyboard } from '../components/game/VirtualKeyboard';
 export default function GameScreen() {
   const { gameId } = useParams();
   const navigate = useNavigate();
-  const game = useGameLogic(gameId);
+  const { gameMode, currentGame } = useGameStore();
+
+  const multiplayerGame = useGameLogic(gameId);
+  const singlePlayerGame = useSinglePlayerLogic(
+    gameMode === 'single' ? currentGame as string : ''
+  );
+
+  const game = gameMode === 'single' ? singlePlayerGame : multiplayerGame;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -40,13 +49,17 @@ export default function GameScreen() {
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-xl font-bold">Wordle Battle</h1>
+        <h1 className="text-xl font-bold">
+          {gameMode === 'single' ? 'Wordle' : 'Wordle Battle'}
+        </h1>
         <div className="w-6"></div>
       </header>
 
       {game.gameStatus !== 'playing' && (
-        <div className={`p-2 text-center text-white font-bold ${game.gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
-          }`}>
+        <div
+          className={`p-2 text-center text-white font-bold ${game.gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+            }`}
+        >
           {game.gameStatus === 'won'
             ? '¡Ganaste!'
             : `¡Perdiste! La palabra era ${game.secretWord}`}
@@ -54,10 +67,12 @@ export default function GameScreen() {
       )}
 
       <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
-        <OpponentProgress
-          rivalAttempts={game.rivalAttempts}
-          rivalGuessResults={game.rivalGuessResults}
-        />
+        {gameMode === 'multi' && (
+          <OpponentProgress
+            rivalAttempts={multiplayerGame.rivalAttempts}
+            rivalGuessResults={multiplayerGame.rivalGuessResults}
+          />
+        )}
         <GameBoard game={game} />
         <VirtualKeyboard
           keyboardState={game.keyboardState}

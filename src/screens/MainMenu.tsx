@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Swords, Trophy, LogOut } from 'lucide-react';
+import { Swords, Trophy, LogOut, User } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { supabase } from '../lib/supabase';
 import useGameSubscription from '../hooks/useGameSubscription';
@@ -8,9 +8,26 @@ import useGameSubscription from '../hooks/useGameSubscription';
 export default function MainMenu() {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
-  const { setAuthenticated, setCurrentGame } = useGameStore();
+  const { setAuthenticated, setCurrentGame, setGameMode } = useGameStore();
 
   useGameSubscription();
+
+  const handleSinglePlayer = async () => {
+    try {
+      const { data: randomWord, error: wordError } = await supabase.rpc('get_random_word');
+      if (wordError) throw wordError;
+
+      if (!randomWord[0]?.word) {
+        throw new Error('No words available in the database');
+      }
+
+      setGameMode('single');
+      setCurrentGame(randomWord[0].word.toUpperCase());
+      navigate('/game/single');
+    } catch (error) {
+      console.error('Error starting single player game:', error);
+    }
+  };
 
   const handleFindMatch = async () => {
     setIsSearching(true);
@@ -26,7 +43,6 @@ export default function MainMenu() {
       let gameId;
 
       if (pendingGames && pendingGames.length > 0) {
-        // Join existing game
         gameId = pendingGames[0].id;
         setCurrentGame(gameId);
         await supabase
@@ -34,7 +50,6 @@ export default function MainMenu() {
           .update({ status: 'in_progress' })
           .eq('id', gameId);
       } else {
-        // Get random word using efficient random selection
         const { data: randomWord, error: wordError } = await supabase.rpc('get_random_word');
         if (wordError) throw wordError;
 
@@ -42,7 +57,6 @@ export default function MainMenu() {
           throw new Error('No words available in the database');
         }
 
-        // Create new game with random word
         const { data: gameData, error: createError } = await supabase
           .from('games')
           .insert([{
@@ -57,6 +71,8 @@ export default function MainMenu() {
         gameId = gameData[0].id;
         setCurrentGame(gameId);
       }
+
+      setGameMode('multi');
     } catch (error) {
       console.error('Error finding match:', error);
       setIsSearching(false);
@@ -80,6 +96,14 @@ export default function MainMenu() {
 
         <div className="space-y-4">
           <button
+            onClick={handleSinglePlayer}
+            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+          >
+            <User className="w-5 h-5" />
+            <span>Single Player</span>
+          </button>
+
+          <button
             onClick={handleFindMatch}
             disabled={isSearching}
             className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
@@ -92,7 +116,7 @@ export default function MainMenu() {
             ) : (
               <>
                 <Swords className="w-5 h-5" />
-                <span>Find Match</span>
+                <span>Multiplayer Battle</span>
               </>
             )}
           </button>
