@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Swords, Trophy, LogOut, User } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
-import { supabase } from '../lib/supabase';
-import useGameSubscription from '../hooks/useGameSubscription';
+import { LogOut, Swords, Trophy, User } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import useGameSubscription from "../hooks/useGameSubscription";
+import { supabase } from "../lib/supabase";
+import { useGameStore } from "../store/gameStore";
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
-  const { setAuthenticated, setCurrentGame, setGameMode } = useGameStore();
+  const [showPopup, setShowPopup] = useState(false); // Estado para el popup
+  const { setAuthenticated, setCurrentGame, setGameMode, authenticated, isGuest } = useGameStore();
 
   useGameSubscription();
 
@@ -30,6 +31,11 @@ export default function MainMenu() {
   };
 
   const handleFindMatch = async () => {
+    if (isGuest) {
+      setShowPopup(true); // Mostrar el popup si es invitado
+      return;
+    }
+
     setIsSearching(true);
     try {
       const { data, error } = await supabase.rpc('join_or_create_game', {
@@ -53,12 +59,17 @@ export default function MainMenu() {
     }
   };
 
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setAuthenticated(false);
-    setCurrentGame(null);
-    navigate('/auth');
+    if (isGuest) {
+      navigate('/auth');
+      setAuthenticated(false);
+      useGameStore.setState({ isGuest: false }); // Resetear el estado guest
+    } else {
+      await supabase.auth.signOut();
+      setAuthenticated(false);
+      setCurrentGame(null);
+      navigate('/auth');
+    }
   };
 
   return (
@@ -105,15 +116,44 @@ export default function MainMenu() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
+          {/* Mostrar Logout solo si no es invitado */}
+          {authenticated && !isGuest ? (
+            <button
+              onClick={handleLogout}
+              className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Logout</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Login</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Popup para mostrar mensaje si es invitado */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+            <h3 className="text-lg font-bold mb-4">Authentication Required</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              You must be logged in to play multiplayer battles.
+            </p>
+            <button
+              onClick={() => setShowPopup(false)}
+              className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
