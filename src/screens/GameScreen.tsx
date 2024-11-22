@@ -87,7 +87,7 @@ export default function GameScreen() {
       )}
 
       <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
-        {gameMode === 'multi' && (
+        {gameMode !== 'single' && (
           <OpponentProgress
             rivalAttempts={multiplayerGame.rivalAttempts}
             rivalGuessResults={multiplayerGame.rivalGuessResults}

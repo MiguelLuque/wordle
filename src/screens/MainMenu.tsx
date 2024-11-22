@@ -32,52 +32,27 @@ export default function MainMenu() {
   const handleFindMatch = async () => {
     setIsSearching(true);
     try {
-      // First check for pending games
-      const { data: pendingGames, error: fetchError } = await supabase
-        .from('games')
-        .select('*')
-        .eq('status', 'pending')
-        .limit(1);
+      const { data, error } = await supabase.rpc('join_or_create_game', {
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+      });
 
-      if (fetchError) throw fetchError;
-      let gameId;
+      if (error) throw error;
 
-      if (pendingGames && pendingGames.length > 0) {
-        gameId = pendingGames[0].id;
-        setCurrentGame(gameId);
-        await supabase
-          .from('games')
-          .update({ status: 'in_progress' })
-          .eq('id', gameId);
-      } else {
-        const { data: randomWord, error: wordError } = await supabase.rpc('get_random_word');
-        if (wordError) throw wordError;
+      if (data && data.length > 0) {
+        const { game_id, status } = data[0];
+        setCurrentGame(game_id);
 
-        if (!randomWord[0]?.word) {
-          throw new Error('No words available in the database');
+        // Redirige a la pantalla adecuada según el estado
+        if (status === 'joined') {
+          setGameMode('multi');
+          navigate(`/game/${game_id}`);
         }
-
-        const { data: gameData, error: createError } = await supabase
-          .from('games')
-          .insert([{
-            status: 'pending',
-            created_by: (await supabase.auth.getUser()).data.user?.id,
-            secret_word: randomWord[0].word.toUpperCase()
-          }])
-          .select();
-
-        if (createError) throw createError;
-
-        gameId = gameData[0].id;
-        setCurrentGame(gameId);
       }
-
-      setGameMode('multi');
     } catch (error) {
       console.error('Error finding match:', error);
-      setIsSearching(false);
     }
   };
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

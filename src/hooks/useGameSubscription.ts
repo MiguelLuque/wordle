@@ -12,44 +12,29 @@ const useGameSubscription = () => {
 
 
    useEffect(() => {
-      //if (!currentGame) return;
-      console.log("Usamos el effect")
-      // Suscripción a los cambios del juego actual
-      const newSubscription = supabase
-         .channel('db-changes')
-         .on(
-            'postgres_changes',
-            {
-               event: 'UPDATE',
-               schema: 'public',
-               table: 'games',
-               filter: `id=eq.${currentGame}`,
-            },
-            (payload: RealtimePostgresChangesPayload<Game>) => {
-
-               console.log('Update received:', payload)
-
-               const game = payload.new as Game;
-               if("in_progress" == game.status){
-
-                  setCurrentGame(game.id);
-                  navigate(`/game/${game.id}`);
-               }
-               
+      const channel = supabase
+        .channel('db-changes')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'games' },
+          (payload: RealtimePostgresChangesPayload<Game>) => {
+            const game = payload.new as Game;
+    
+            // Navegar solo si el juego está en progreso
+            if (game.status === 'in_progress') {
+              setCurrentGame(game.id.toString());
+              navigate(`/game/${game.id}`);
             }
-         )
-         .subscribe();
-
-      setSubscription(newSubscription);
-
-      // Limpiar la suscripción al desmontar
+          }
+        )
+        .subscribe();
+    
+      setSubscription(channel);
+    
       return () => {
-         if (newSubscription) {
-            supabase.removeChannel(newSubscription);
-            console.log('Removed subscription');
-         }
+        if (channel) supabase.removeChannel(channel);
       };
-   }, [currentGame]);
+    }, [currentGame]);
 
    return { setCurrentGame };
 };
