@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { GuessResult, GuessEntry, GameStatus, KeyState } from '../types/game.types';
 import { GAME_CONSTANTS } from '../types/game.types';
+import { toast } from 'react-hot-toast';
 
 interface GameMessage {
   type: 'game_over' | 'guess';
@@ -82,8 +83,41 @@ export function useGameLogic(gameId: string | undefined) {
     }
   };
 
+  const checkWordExists = async (word: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.rpc('buscar_palabra', {
+        palabra: word.toLowerCase()
+      });
+
+      if (error) {
+        console.error('Error al validar la palabra:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Error en checkWordExists:', error);
+      return false;
+    }
+  };
+
   const submitAttempt = async () => {
     if (!secretWord) return;
+
+    const palabraExiste = await checkWordExists(currentAttempt);
+    
+    if (!palabraExiste) {
+      toast.error('La palabra no existe en el diccionario', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      const currentRow = document.querySelector('.current-row');
+      currentRow?.classList.add('shake');
+      setTimeout(() => {
+        currentRow?.classList.remove('shake');
+      }, 500);
+      return;
+    }
 
     const newGuessResult = checkGuess(currentAttempt);
     updateKeyboardState(newGuessResult);

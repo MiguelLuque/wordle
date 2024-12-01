@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { LetterState, GameStatus, KeyState, GuessResult } from '../types/game.types';
+import { GuessResult, GameStatus, KeyState } from '../types/game.types';
 import { GAME_CONSTANTS } from '../types/game.types';
+import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 export function useSinglePlayerLogic(secretWord: string) {
   const [currentAttempt, setCurrentAttempt] = useState('');
@@ -10,6 +12,8 @@ export function useSinglePlayerLogic(secretWord: string) {
   const [keyboardState, setKeyboardState] = useState<Record<string, KeyState>>({});
 
   const checkGuess = (guess: string): GuessResult[] => {
+    if (!secretWord) return [];
+
     const result: GuessResult[] = [];
     const secretLetters = secretWord.split('');
     const remainingLetters = [...secretLetters];
@@ -54,6 +58,55 @@ export function useSinglePlayerLogic(secretWord: string) {
     });
   };
 
+  const checkWordExists = async (word: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.rpc('buscar_palabra', {
+        palabra: word.toLowerCase()
+      });
+
+      if (error) {
+        console.error('Error al validar la palabra:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Error en checkWordExists:', error);
+      return false;
+    }
+  };
+
+  const submitAttempt = async () => {
+    if (!secretWord) return;
+
+    const palabraExiste = await checkWordExists(currentAttempt);
+    
+    if (!palabraExiste) {
+      toast.error('La palabra no existe en el diccionario', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      const currentRow = document.querySelector('.current-row');
+      currentRow?.classList.add('shake');
+      setTimeout(() => {
+        currentRow?.classList.remove('shake');
+      }, 500);
+      return;
+    }
+
+    const newGuessResult = checkGuess(currentAttempt);
+    updateKeyboardState(newGuessResult);
+    setGuessResults((prev) => [...prev, newGuessResult]);
+    setAttempts((prev) => [...prev, currentAttempt]);
+    setCurrentAttempt('');
+
+    if (currentAttempt === secretWord) {
+      setGameStatus('won');
+    } else if (attempts.length + 1 >= GAME_CONSTANTS.MAX_ATTEMPTS) {
+      setGameStatus('lost');
+    }
+  };
+
   const handleKeyPress = (key: string) => {
     if (gameStatus !== 'playing') return;
 
@@ -70,20 +123,6 @@ export function useSinglePlayerLogic(secretWord: string) {
     }
   };
 
-  const submitAttempt = () => {
-    const newGuessResult = checkGuess(currentAttempt);
-    updateKeyboardState(newGuessResult);
-    setGuessResults((prev) => [...prev, newGuessResult]);
-    setAttempts((prev) => [...prev, currentAttempt]);
-    setCurrentAttempt('');
-
-    if (currentAttempt === secretWord) {
-      setGameStatus('won');
-    } else if (attempts.length + 1 >= GAME_CONSTANTS.MAX_ATTEMPTS) {
-      setGameStatus('lost');
-    }
-  };
-
   return {
     currentAttempt,
     secretWord,
@@ -92,5 +131,7 @@ export function useSinglePlayerLogic(secretWord: string) {
     gameStatus,
     keyboardState,
     handleKeyPress,
+    rivalAttempts: [], // Para mantener la interfaz consistente con useGameLogic
+    rivalGuessResults: [], // Para mantener la interfaz consistente con useGameLogic
   };
 } 

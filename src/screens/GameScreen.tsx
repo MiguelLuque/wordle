@@ -29,7 +29,7 @@ export default function GameScreen() {
     onRedirect: () => {
       // Limpiar el estado del juego al redirigir
       setCurrentGame(null);
-      setGameMode(null);
+      setGameMode(undefined);
     }
   });
 

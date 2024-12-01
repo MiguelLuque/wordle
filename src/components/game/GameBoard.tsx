@@ -36,7 +36,7 @@ export function GameBoard({ game }: GameBoardProps) {
 
                 <div className="grid gap-2 mx-auto mb-4" style={{ maxWidth: "fit-content" }}>
                     {[...Array(GAME_CONSTANTS.MAX_ATTEMPTS)].map((_, i) => (
-                        <div key={i} className="grid grid-cols-5 gap-1">
+                        <div key={i} className={`grid grid-cols-5 gap-1 ${i === game.attempts.length ? 'current-row' : ''}`}>
                             {[...Array(GAME_CONSTANTS.WORD_LENGTH)].map((_, j) => {
                                 const letter =
                                     i === game.attempts.length
