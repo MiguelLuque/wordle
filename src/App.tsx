@@ -4,6 +4,7 @@ import AuthScreen from './screens/AuthScreen';
 import MainMenu from './screens/MainMenu';
 import GameScreen from './screens/GameScreen';
 import { Toaster } from 'react-hot-toast';
+import SplashScreen from './screens/SplashScreen';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const authenticated = useGameStore((state) => state.authenticated);
@@ -21,15 +22,9 @@ export default function App() {
       <Toaster />
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<SplashScreen />} />
           <Route path="/auth" element={<AuthScreen />} />
-          <Route
-            path="/menu"
-            element={
-              <ProtectedRoute>
-                <MainMenu />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/menu" element={<MainMenu />} />
           <Route
             path="/game/:gameId"
             element={
