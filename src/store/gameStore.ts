@@ -6,7 +6,7 @@ interface GameStore {
   authenticated: boolean;
   isGuest: boolean;
   currentGame: string | null;
-  gameMode: GameMode | null;
+  gameMode: GameMode;
   setAuthenticated: (value: boolean) => void;
   setGuest: (value: boolean) => void;
   setCurrentGame: (gameId: string | null) => void;
@@ -17,7 +17,7 @@ export const useGameStore = create<GameStore>((set) => ({
   authenticated: false,
   isGuest: false,
   currentGame: null,
-  gameMode: null,
+  gameMode: 'single',
   setAuthenticated: (value) => {
     set({ authenticated: value });
   },

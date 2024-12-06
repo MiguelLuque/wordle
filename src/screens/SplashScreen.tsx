@@ -7,7 +7,7 @@ import { styles } from '../styles/theme';
 
 export default function SplashScreen() {
   const navigate = useNavigate();
-  const isAuthenticated = useGameStore((state) => state.isAuthenticated);
+  const isAuthenticated = useGameStore((state) => state.authenticated);
 
   useEffect(() => {
     const timer = setTimeout(() => {

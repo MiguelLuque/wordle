@@ -13,29 +13,31 @@ import { styles } from '../styles/theme';
 export default function GameScreen() {
   const { gameId } = useParams();
   const navigate = useNavigate();
-  const { gameMode, currentGame, setCurrentGame, setGameMode } = useGameStore();
+  const { currentGame, setCurrentGame, setGameMode } = useGameStore();
 
-  const multiplayerGame = useGameLogic(gameId);
-  const singlePlayerGame = useSinglePlayerLogic(
-    gameMode === 'single' ? currentGame as string : ''
-  );
+  /*   const multiplayerGame = useGameLogic(gameId);
+    const singlePlayerGame = useSinglePlayerLogic(
+      gameId === 'single' ? currentGame as string : ''
+    ); */
 
-  const game = gameMode === 'single' ? singlePlayerGame : multiplayerGame;
+  const game = gameId === 'single' ? useSinglePlayerLogic(
+    gameId === 'single' ? currentGame as string : ''
+  ) : useGameLogic(gameId);
 
   const handleBackToMenu = () => {
     setCurrentGame(null);
-    setGameMode(null);
+    setGameMode('multi');
     navigate('/menu');
   };
 
   // Solo configurar redirección automática para juego individual
   useAutoRedirect({
-    condition: gameMode === 'single' && game.gameStatus !== 'playing',
+    condition: gameId === 'single' && game.gameStatus !== 'playing',
     delay: 3000,
     path: '/menu',
     onRedirect: () => {
       setCurrentGame(null);
-      setGameMode(null);
+      setGameMode('multi');
     }
   });
 
@@ -69,13 +71,13 @@ export default function GameScreen() {
           <ArrowLeft className={styles.icon.variants.primary} />
         </button>
         <h1 className={styles.text.heading.h3}>
-          {gameMode === 'single' ? 'Wordle' : 'Wordle Battle'}
+          {gameId === 'single' ? 'Wordle' : 'Wordle Battle'}
         </h1>
         <div className="w-6"></div>
       </header>
 
       {/* Modal para juego multijugador */}
-      {gameMode !== 'single' && game.gameStatus !== 'playing' && (
+      {gameId !== 'single' && game.gameStatus !== 'playing' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className={`${styles.card.variants.primary} max-w-md w-full mx-4`}>
             <div className="p-6 flex flex-col items-center gap-4">
@@ -98,7 +100,7 @@ export default function GameScreen() {
       )}
 
       {/* Banner para juego individual */}
-      {gameMode === 'single' && game.gameStatus !== 'playing' && (
+      {gameId === 'single' && game.gameStatus !== 'playing' && (
         <div
           className={`p-2 text-center text-white font-bold shadow-lg ${game.gameStatus === 'won'
             ? 'bg-green-600'
@@ -119,10 +121,10 @@ export default function GameScreen() {
       )}
 
       <div className={`flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4 ${styles.card.variants.game}`}>
-        {gameMode !== 'single' && (
+        {gameId !== 'single' && (
           <OpponentProgress
-            rivalAttempts={multiplayerGame.rivalAttempts}
-            rivalGuessResults={multiplayerGame.rivalGuessResults}
+            rivalAttempts={game.rivalAttempts}
+            rivalGuessResults={game.rivalGuessResults}
           />
         )}
         <GameBoard game={game} />
