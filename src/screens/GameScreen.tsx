@@ -120,19 +120,29 @@ export default function GameScreen() {
         </div>
       )}
 
-      <div className={`flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4 ${styles.card.variants.game}`}>
-        {gameId !== 'single' && (
-          <OpponentProgress
-            rivalAttempts={game.rivalAttempts}
-            rivalGuessResults={game.rivalGuessResults}
-          />
-        )}
-        <GameBoard game={game} />
-        <VirtualKeyboard
-          keyboardState={game.keyboardState}
-          onKeyPress={game.handleKeyPress}
-          gameStatus={game.gameStatus}
-        />
+      <div className="flex-1 flex flex-col w-full">
+        <div className={`flex-1 flex flex-col gap-4 max-w-2xl mx-auto w-full px-2 py-4 ${styles.card.variants.game}`}>
+          {gameId !== 'single' && (
+            <div className="w-full">
+              <OpponentProgress
+                rivalAttempts={game.rivalAttempts}
+                rivalGuessResults={game.rivalGuessResults}
+              />
+            </div>
+          )}
+
+          <div className="w-full">
+            <GameBoard game={game} />
+          </div>
+
+          <div className="w-full">
+            <VirtualKeyboard
+              keyboardState={game.keyboardState}
+              onKeyPress={game.handleKeyPress}
+              gameStatus={game.gameStatus}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
