@@ -22,15 +22,20 @@ export default function GameScreen() {
 
   const game = gameMode === 'single' ? singlePlayerGame : multiplayerGame;
 
-  // Configurar redirección automática cuando el juego termina
+  const handleBackToMenu = () => {
+    setCurrentGame(null);
+    setGameMode(null);
+    navigate('/menu');
+  };
+
+  // Solo configurar redirección automática para juego individual
   useAutoRedirect({
-    condition: game.gameStatus !== 'playing',
+    condition: gameMode === 'single' && game.gameStatus !== 'playing',
     delay: 3000,
     path: '/menu',
     onRedirect: () => {
-      // Limpiar el estado del juego al redirigir
       setCurrentGame(null);
-      setGameMode(undefined);
+      setGameMode(null);
     }
   });
 
@@ -69,11 +74,35 @@ export default function GameScreen() {
         <div className="w-6"></div>
       </header>
 
-      {game.gameStatus !== 'playing' && (
+      {/* Modal para juego multijugador */}
+      {gameMode !== 'single' && game.gameStatus !== 'playing' && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className={`${styles.card.variants.primary} max-w-md w-full mx-4`}>
+            <div className="p-6 flex flex-col items-center gap-4">
+              <h2 className={`${styles.text.heading.h2} text-center ${game.gameStatus === 'won' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                {game.gameStatus === 'won' ? '¡Victoria!' : '¡Derrota!'}
+              </h2>
+              <p className={`${styles.text.body.base} text-center`}>
+                La palabra era: <span className="font-bold">{game.secretWord}</span>
+              </p>
+              <button
+                onClick={handleBackToMenu}
+                className={`${styles.button.variants.primary} ${styles.button.sizes.lg} w-full mt-4`}
+              >
+                Volver al Menú
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner para juego individual */}
+      {gameMode === 'single' && game.gameStatus !== 'playing' && (
         <div
           className={`p-2 text-center text-white font-bold shadow-lg ${game.gameStatus === 'won'
-              ? 'bg-green-600'
-              : 'bg-red-600'
+            ? 'bg-green-600'
+            : 'bg-red-600'
             }`}
         >
           <div className="flex flex-col items-center">

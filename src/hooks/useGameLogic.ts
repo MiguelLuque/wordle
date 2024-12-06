@@ -164,6 +164,14 @@ export function useGameLogic(gameId: string | undefined) {
         }
       });
 
+      await supabase
+        .from('games')
+        .update({
+          status: 'finished',
+          winner: null
+        })
+        .eq('id', gameId);
+
       setGameStatus('lost');
     }
   };
