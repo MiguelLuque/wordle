@@ -9,6 +9,7 @@ export default function MainMenu() {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
   const [showPopup, setShowPopup] = useState(false); // Estado para el popup
+  const [searchError, setSearchError] = useState<string | null>(null);
   const { setAuthenticated, setCurrentGame, setGameMode, authenticated, isGuest } = useGameStore();
 
   useGameSubscription();
@@ -72,6 +73,23 @@ export default function MainMenu() {
     }
   };
 
+  const handleCancelSearch = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const { error } = await supabase.rpc('cancel_game_search', {
+        user_id: user.user?.id,
+      });
+
+      if (error) throw error;
+
+      setIsSearching(false);
+      setSearchError(null);
+    } catch (error) {
+      console.error('Error canceling game search:', error);
+      setSearchError('Error al cancelar la búsqueda');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
@@ -90,14 +108,14 @@ export default function MainMenu() {
           </button>
 
           <button
-            onClick={handleFindMatch}
-            disabled={isSearching}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+            onClick={isSearching ? handleCancelSearch : handleFindMatch}
+            disabled={false}
+            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
           >
             {isSearching ? (
               <>
                 <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                <span>Finding Match...</span>
+                <span>Cancelar búsqueda</span>
               </>
             ) : (
               <>
@@ -106,6 +124,10 @@ export default function MainMenu() {
               </>
             )}
           </button>
+
+          {searchError && (
+            <p className="text-red-500 text-sm text-center">{searchError}</p>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
