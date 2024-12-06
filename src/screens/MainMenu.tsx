@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import useGameSubscription from "../hooks/useGameSubscription";
 import { supabase } from "../lib/supabase";
 import { useGameStore } from "../store/gameStore";
+import { cn } from "../utils/styleUtils";
+import { styles } from "../styles/theme";
 
 export default function MainMenu() {
   const navigate = useNavigate();
@@ -91,87 +93,137 @@ export default function MainMenu() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex flex-col items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <div className="flex justify-center mb-8">
-          <Trophy className="w-16 h-16 text-yellow-500" />
-        </div>
-        <h1 className="text-3xl font-bold text-center mb-8">Wordle Battle</h1>
+    <div className={styles.layout.page}>
+      {/* Elementos decorativos de fondo */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#8b4513]/10 to-[#6b46c1]/10" />
+      <div className="absolute top-20 -left-20 w-72 h-72 bg-[#8b4513]/20 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 -right-20 w-72 h-72 bg-[#6b46c1]/20 rounded-full blur-3xl" />
 
-        <div className="space-y-4">
+      <div className={cn(
+        styles.card.variants.glass,
+        "w-full max-w-md p-8 relative z-10"
+      )}>
+        <div className="flex justify-center mb-8">
+          <div className={cn(
+            "p-4 rounded-full",
+            styles.effects.glow,
+            "bg-gradient-to-br from-[#8b4513] to-[#723a0f]"
+          )}>
+            <Trophy className="w-16 h-16 text-white" />
+          </div>
+        </div>
+
+        <h1 className={cn(
+          styles.text.heading.h1,
+          "text-center mb-8 text-[#2c1810]"
+        )}>
+          Wordle Battle
+        </h1>
+
+        <div className="space-y-3">
           <button
             onClick={handleSinglePlayer}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+            className={cn(
+              styles.button.base,
+              styles.button.variants.primary,
+              "w-full h-12 flex items-center justify-center gap-3"
+            )}
           >
             <User className="w-5 h-5" />
-            <span>Single Player</span>
+            <span className="font-medium">Un Jugador</span>
           </button>
 
           <button
             onClick={isSearching ? handleCancelSearch : handleFindMatch}
             disabled={false}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
+            className={cn(
+              styles.button.base,
+              styles.button.variants.secondary,
+              "w-full h-12 flex items-center justify-center gap-3",
+              isSearching && "bg-opacity-90"
+            )}
           >
             {isSearching ? (
               <>
-                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                <span>Cancelar búsqueda</span>
+                <div className="w-5 h-5 border-2 border-[#2c1810] border-t-transparent rounded-full animate-spin" />
+                <span className="font-medium">Cancelar búsqueda</span>
               </>
             ) : (
               <>
                 <Swords className="w-5 h-5" />
-                <span>Multiplayer Battle</span>
+                <span className="font-medium">Batalla Multijugador</span>
               </>
             )}
           </button>
 
           {searchError && (
-            <p className="text-red-500 text-sm text-center">{searchError}</p>
+            <p className={cn(
+              styles.text.body.small,
+              "text-red-500 text-center mt-2"
+            )}>
+              {searchError}
+            </p>
           )}
 
-          <div className="relative">
+          <div className="relative py-4">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-[#8b4513]/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">or</span>
+              <span className="px-2 bg-white/60 backdrop-blur-sm text-[#5c392c]">
+                o
+              </span>
             </div>
           </div>
 
-          {/* Mostrar Logout solo si no es invitado */}
-          {authenticated && !isGuest ? (
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Login</span>
-            </button>
-          )}
+          <button
+            onClick={handleLogout}
+            className={cn(
+              styles.button.base,
+              authenticated && !isGuest
+                ? styles.button.variants.ghost
+                : styles.button.variants.secondary,
+              "w-full h-12 flex items-center justify-center gap-3"
+            )}
+          >
+            <LogOut className={cn(
+              "w-5 h-5",
+              authenticated && !isGuest
+                ? "text-[#2c1810]"
+                : "text-[#8b4513]"
+            )} />
+            <span className="font-medium">
+              {authenticated && !isGuest ? 'Cerrar Sesión' : 'Iniciar Sesión'}
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* Popup para mostrar mensaje si es invitado */}
+      {/* Popup de autenticación requerida */}
       {showPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-            <h3 className="text-lg font-bold mb-4">Authentication Required</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              You must be logged in to play multiplayer battles.
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className={cn(
+            styles.card.variants.primary,
+            "p-6 max-w-sm mx-4"
+          )}>
+            <h3 className={styles.text.heading.h3}>
+              Autenticación Requerida
+            </h3>
+            <p className={cn(
+              styles.text.body.base,
+              "mt-2 mb-4"
+            )}>
+              Debes iniciar sesión para jugar partidas multijugador.
             </p>
             <button
               onClick={() => setShowPopup(false)}
-              className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
+              className={cn(
+                styles.button.base,
+                styles.button.variants.primary,
+                "w-full h-12 flex items-center justify-center"
+              )}
             >
-              OK
+              Entendido
             </button>
           </div>
         </div>
