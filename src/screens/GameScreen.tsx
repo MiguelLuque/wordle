@@ -8,6 +8,7 @@ import { useGameStore } from '../store/gameStore';
 import { OpponentProgress } from '../components/game/OpponentProgress';
 import { GameBoard } from '../components/game/GameBoard';
 import { VirtualKeyboard } from '../components/game/VirtualKeyboard';
+import { styles } from '../styles/theme';
 
 export default function GameScreen() {
   const { gameId } = useParams();
@@ -47,22 +48,22 @@ export default function GameScreen() {
 
   if (!game.secretWord) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+      <div className={styles.layout.page}>
+        <div className="animate-spin w-8 h-8 border-4 border-primary-main border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-[100dvh] bg-gray-100 flex flex-col">
-      <header className="bg-white shadow-sm p-3 flex items-center justify-between">
+    <div className={`h-[100dvh] ${styles.layout.page}`}>
+      <header className={styles.layout.header}>
         <button
           onClick={() => navigate('/menu')}
-          className="text-gray-600 hover:text-gray-800 transition-colors"
+          className={styles.button.variants.icon}
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className={styles.icon.variants.primary} />
         </button>
-        <h1 className="text-xl font-bold">
+        <h1 className={styles.text.heading.h3}>
           {gameMode === 'single' ? 'Wordle' : 'Wordle Battle'}
         </h1>
         <div className="w-6"></div>
@@ -70,23 +71,25 @@ export default function GameScreen() {
 
       {game.gameStatus !== 'playing' && (
         <div
-          className={`p-2 text-center text-white font-bold ${game.gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+          className={`p-2 text-center text-white font-bold shadow-lg ${game.gameStatus === 'won'
+              ? 'bg-green-600'
+              : 'bg-red-600'
             }`}
         >
           <div className="flex flex-col items-center">
-            <div>
+            <div className="text-lg">
               {game.gameStatus === 'won'
                 ? '¡Ganaste!'
                 : `¡Perdiste! La palabra era ${game.secretWord}`}
             </div>
-            <div className="text-sm mt-1 opacity-75">
+            <div className="text-sm mt-1 opacity-90">
               Volviendo al menú en 3 segundos...
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
+      <div className={`flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4 ${styles.card.variants.game}`}>
         {gameMode !== 'single' && (
           <OpponentProgress
             rivalAttempts={multiplayerGame.rivalAttempts}
