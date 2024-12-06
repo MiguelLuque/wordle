@@ -6,6 +6,12 @@ import { useGameStore } from '../store/gameStore';
 import { cn } from '../utils/styleUtils';
 import { styles } from '../styles/theme';
 
+interface AuthError {
+  email?: string;
+  password?: string;
+  general?: string;
+}
+
 export default function AuthScreen() {
   const navigate = useNavigate();
   const setAuthenticated = useGameStore((state) => state.setAuthenticated);
@@ -13,7 +19,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
+  const [errors, setErrors] = useState<AuthError>({});
 
   useEffect(() => {
     const checkSession = async () => {
@@ -27,13 +33,36 @@ export default function AuthScreen() {
     checkSession();
   }, []);
 
+  const validatePassword = (password: string): boolean => {
+    const minLength = 6;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasNumber = /\d/.test(password);
+
+    if (password.length < minLength) {
+      setErrors(prev => ({
+        ...prev,
+        password: 'La contraseña debe tener al menos 6 caracteres'
+      }));
+      return false;
+    }
+
+    if (!hasUpperCase || !hasNumber) {
+      setErrors(prev => ({
+        ...prev,
+        password: 'La contraseña debe contener al menos una mayúscula y un número'
+      }));
+      return false;
+    }
+
+    return true;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setPasswordError('');
+    setErrors({});
 
-    if (!isLogin && password.length < 6) {
-      setPasswordError('La contraseña debe tener al menos 6 caracteres');
+    if (!isLogin && !validatePassword(password)) {
       setLoading(false);
       return;
     }
@@ -43,14 +72,45 @@ export default function AuthScreen() {
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password });
 
-      if (error) throw error;
+      if (error) {
+        handleAuthError(error);
+        return;
+      }
 
       setAuthenticated(true);
       navigate('/menu');
     } catch (error) {
       console.error('Auth error:', error);
+      setErrors(prev => ({
+        ...prev,
+        general: 'Ha ocurrido un error inesperado'
+      }));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAuthError = (error: any) => {
+    switch (error.message) {
+      case 'Invalid login credentials':
+        setErrors({
+          general: 'Email o contraseña incorrectos'
+        });
+        break;
+      case 'User already registered':
+        setErrors({
+          email: 'Este email ya está registrado'
+        });
+        break;
+      case 'Invalid email format':
+        setErrors({
+          email: 'Formato de email inválido'
+        });
+        break;
+      default:
+        setErrors({
+          general: 'Ha ocurrido un error. Por favor, inténtalo de nuevo'
+        });
     }
   };
 
@@ -99,13 +159,25 @@ export default function AuthScreen() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrors(prev => ({ ...prev, email: undefined }));
+              }}
               className={cn(
                 styles.input.variants.primary,
-                "w-full px-4 py-3"
+                "w-full px-4 py-3",
+                errors.email && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
               required
             />
+            {errors.email && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {errors.email}
+              </p>
+            )}
           </div>
 
           <div>
@@ -120,26 +192,35 @@ export default function AuthScreen() {
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                if (!isLogin && passwordError) {
-                  setPasswordError('');
-                }
+                setErrors(prev => ({ ...prev, password: undefined }));
               }}
               className={cn(
                 styles.input.variants.primary,
                 "w-full px-4 py-3",
-                passwordError && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                errors.password && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
               required
             />
-            {passwordError && (
+            {errors.password && (
               <p className="mt-2 text-sm text-red-600 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                {passwordError}
+                {errors.password}
               </p>
             )}
           </div>
+
+          {errors.general && (
+            <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
+              <p className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {errors.general}
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"
