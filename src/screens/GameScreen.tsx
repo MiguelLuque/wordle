@@ -8,6 +8,7 @@ import { useGameStore } from '../store/gameStore';
 import { OpponentProgress } from '../components/game/OpponentProgress';
 import { GameBoard } from '../components/game/GameBoard';
 import { VirtualKeyboard } from '../components/game/VirtualKeyboard';
+import { styles } from '../styles/theme';
 
 export default function GameScreen() {
   const { gameId } = useParams();
@@ -21,15 +22,20 @@ export default function GameScreen() {
 
   const game = gameMode === 'single' ? singlePlayerGame : multiplayerGame;
 
-  // Configurar redirección automática cuando el juego termina
+  const handleBackToMenu = () => {
+    setCurrentGame(null);
+    setGameMode(null);
+    navigate('/menu');
+  };
+
+  // Solo configurar redirección automática para juego individual
   useAutoRedirect({
-    condition: game.gameStatus !== 'playing',
+    condition: gameMode === 'single' && game.gameStatus !== 'playing',
     delay: 3000,
     path: '/menu',
     onRedirect: () => {
-      // Limpiar el estado del juego al redirigir
       setCurrentGame(null);
-      setGameMode(undefined);
+      setGameMode(null);
     }
   });
 
@@ -47,46 +53,72 @@ export default function GameScreen() {
 
   if (!game.secretWord) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+      <div className={styles.layout.page}>
+        <div className="animate-spin w-8 h-8 border-4 border-primary-main border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-[100dvh] bg-gray-100 flex flex-col">
-      <header className="bg-white shadow-sm p-3 flex items-center justify-between">
+    <div className={`h-[100dvh] ${styles.layout.page}`}>
+      <header className={styles.layout.header}>
         <button
           onClick={() => navigate('/menu')}
-          className="text-gray-600 hover:text-gray-800 transition-colors"
+          className={styles.button.variants.icon}
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className={styles.icon.variants.primary} />
         </button>
-        <h1 className="text-xl font-bold">
+        <h1 className={styles.text.heading.h3}>
           {gameMode === 'single' ? 'Wordle' : 'Wordle Battle'}
         </h1>
         <div className="w-6"></div>
       </header>
 
-      {game.gameStatus !== 'playing' && (
+      {/* Modal para juego multijugador */}
+      {gameMode !== 'single' && game.gameStatus !== 'playing' && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className={`${styles.card.variants.primary} max-w-md w-full mx-4`}>
+            <div className="p-6 flex flex-col items-center gap-4">
+              <h2 className={`${styles.text.heading.h2} text-center ${game.gameStatus === 'won' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                {game.gameStatus === 'won' ? '¡Victoria!' : '¡Derrota!'}
+              </h2>
+              <p className={`${styles.text.body.base} text-center`}>
+                La palabra era: <span className="font-bold">{game.secretWord}</span>
+              </p>
+              <button
+                onClick={handleBackToMenu}
+                className={`${styles.button.variants.primary} ${styles.button.sizes.lg} w-full mt-4`}
+              >
+                Volver al Menú
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner para juego individual */}
+      {gameMode === 'single' && game.gameStatus !== 'playing' && (
         <div
-          className={`p-2 text-center text-white font-bold ${game.gameStatus === 'won' ? 'bg-green-500' : 'bg-red-500'
+          className={`p-2 text-center text-white font-bold shadow-lg ${game.gameStatus === 'won'
+            ? 'bg-green-600'
+            : 'bg-red-600'
             }`}
         >
           <div className="flex flex-col items-center">
-            <div>
+            <div className="text-lg">
               {game.gameStatus === 'won'
                 ? '¡Ganaste!'
                 : `¡Perdiste! La palabra era ${game.secretWord}`}
             </div>
-            <div className="text-sm mt-1 opacity-75">
+            <div className="text-sm mt-1 opacity-90">
               Volviendo al menú en 3 segundos...
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
+      <div className={`flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4 ${styles.card.variants.game}`}>
         {gameMode !== 'single' && (
           <OpponentProgress
             rivalAttempts={multiplayerGame.rivalAttempts}
