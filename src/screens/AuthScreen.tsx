@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { User, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useGameStore } from '../store/gameStore';
+import { cn } from '../utils/styleUtils';
+import { styles } from '../styles/theme';
 
 export default function AuthScreen() {
   const navigate = useNavigate();
@@ -58,32 +60,60 @@ export default function AuthScreen() {
     navigate('/menu');
   };
 
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+    <div className={styles.layout.page}>
+      {/* Elementos decorativos de fondo */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#8b4513]/10 to-[#6b46c1]/10" />
+      <div className="absolute top-20 -left-20 w-72 h-72 bg-[#8b4513]/20 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 -right-20 w-72 h-72 bg-[#6b46c1]/20 rounded-full blur-3xl" />
+
+      <div className={cn(
+        styles.card.variants.glass,
+        "w-full max-w-md p-8 relative z-10"
+      )}>
         <div className="flex justify-center mb-8">
-          <KeyRound className="w-16 h-16 text-purple-600" />
+          <div className={cn(
+            "p-4 rounded-full",
+            styles.effects.glow,
+            "bg-gradient-to-br from-[#8b4513] to-[#723a0f]"
+          )}>
+            <KeyRound className="w-16 h-16 text-white" />
+          </div>
         </div>
-        <h2 className="text-3xl font-bold text-center mb-8">
-          {isLogin ? 'Welcome Back!' : 'Create Account'}
+
+        <h2 className={cn(
+          styles.text.heading.h1,
+          "text-center mb-8 text-[#2c1810]"
+        )}>
+          {isLogin ? '¡Bienvenido!' : 'Crear Cuenta'}
         </h2>
+
         <form onSubmit={handleAuth} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className={cn(
+              styles.text.body.small,
+              "block mb-2"
+            )}>
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className={cn(
+                styles.input.variants.primary,
+                "w-full px-4 py-3"
+              )}
               required
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+            <label className={cn(
+              styles.text.body.small,
+              "block mb-2"
+            )}>
+              Contraseña
             </label>
             <input
               type="password"
@@ -94,8 +124,11 @@ export default function AuthScreen() {
                   setPasswordError('');
                 }
               }}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${passwordError ? 'border-red-500' : ''
-                }`}
+              className={cn(
+                styles.input.variants.primary,
+                "w-full px-4 py-3",
+                passwordError && "border-red-500 focus:border-red-500 focus:ring-red-500"
+              )}
               required
             />
             {passwordError && (
@@ -107,30 +140,52 @@ export default function AuthScreen() {
               </p>
             )}
           </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className={cn(
+              styles.button.base,
+              styles.button.variants.primary,
+              "w-full h-12 flex items-center justify-center gap-3"
+            )}
           >
-            {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
+            {loading ? 'Procesando...' : isLogin ? 'Iniciar Sesión' : 'Registrarse'}
           </button>
         </form>
-        <div className="mt-6">
+
+        <div className="relative py-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#8b4513]/20"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+          </div>
+        </div>
+
+        <div className="space-y-3">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="w-full text-purple-600 text-sm hover:underline"
+            className={cn(
+              styles.button.base,
+              styles.button.variants.secondary,
+              "w-full h-12 flex items-center justify-center"
+            )}
           >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            {isLogin ? "¿No tienes cuenta? Regístrate" : '¿Ya tienes cuenta? Inicia sesión'}
           </button>
-        </div>
-        {<div className="mt-6">
+
           <button
             onClick={handleGuestLogin}
-            className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+            className={cn(
+              styles.button.base,
+              styles.button.variants.ghost,
+              "w-full h-12 flex items-center justify-center gap-3"
+            )}
           >
-            Continue as Guest
+            <User className="w-5 h-5" />
+            <span>Continuar como Invitado</span>
           </button>
-        </div>}
+        </div>
       </div>
     </div>
   );

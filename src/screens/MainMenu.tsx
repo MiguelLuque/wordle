@@ -170,9 +170,7 @@ export default function MainMenu() {
               <div className="w-full border-t border-[#8b4513]/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white/60 backdrop-blur-sm text-[#5c392c]">
-                o
-              </span>
+
             </div>
           </div>
 
@@ -180,18 +178,11 @@ export default function MainMenu() {
             onClick={handleLogout}
             className={cn(
               styles.button.base,
-              authenticated && !isGuest
-                ? styles.button.variants.ghost
-                : styles.button.variants.secondary,
+              styles.button.variants.secondary,
               "w-full h-12 flex items-center justify-center gap-3"
             )}
           >
-            <LogOut className={cn(
-              "w-5 h-5",
-              authenticated && !isGuest
-                ? "text-[#2c1810]"
-                : "text-[#8b4513]"
-            )} />
+            <LogOut className="w-5 h-5 text-[#2c1810]" />
             <span className="font-medium">
               {authenticated && !isGuest ? 'Cerrar Sesión' : 'Iniciar Sesión'}
             </span>
